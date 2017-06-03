@@ -154,13 +154,11 @@ namespace Ants
         {
             return headers.TryParseHeaderValue(key, headerValue =>
             {
-                DateTimeOffset returnValue;
-                if (DateTimeOffset.TryParseExact(headerValue, dateFormats, DateTimeFormatInfo.InvariantInfo, DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.AssumeUniversal, out returnValue))
+                if (DateTimeOffset.TryParseExact(headerValue, dateFormats, DateTimeFormatInfo.InvariantInfo, DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.AssumeUniversal, out DateTimeOffset returnValue))
                 {
                     return returnValue;
                 }
-                int invalidDate;
-                if (int.TryParse(headerValue, out invalidDate) && invalidDate <= 0)
+                if (int.TryParse(headerValue, out int invalidDate) && invalidDate <= 0)
                 {
                     return null;
                 }
@@ -177,8 +175,7 @@ namespace Ants
         {
             return headers.TryParseHeaderValue(key, headerValue =>
             {
-                long returnValue;
-                if (!string.IsNullOrEmpty(headerValue) && long.TryParse(headerValue, out returnValue))
+                if (!string.IsNullOrEmpty(headerValue) && long.TryParse(headerValue, out long returnValue))
                 {
                     return returnValue;
                 }
@@ -202,8 +199,7 @@ namespace Ants
         /// <returns>True of the key exists.</returns>
         public static bool TryParseHeaderValues<T>(this IDictionary<string, string[]> headers, string key, Func<string[], T> parse, out T value)
         {
-            string[] headerValues;
-            if (headers.TryRemoveHeader(key, out headerValues))
+            if (headers.TryRemoveHeader(key, out string[] headerValues))
             {
                 value = parse(headerValues);
                 return true;

@@ -219,9 +219,8 @@ namespace Ants.Web.Areas.HelpPage
         /// </returns>
         public static HelpPageApiModel GetHelpPageApiModel(this HttpConfiguration config, string apiDescriptionId)
         {
-            object model;
             var modelId = apiModelPrefix + apiDescriptionId;
-            if (!config.Properties.TryGetValue(modelId, out model))
+            if (!config.Properties.TryGetValue(modelId, out object model))
             {
                 var apiDescriptions = config.Services.GetApiExplorer().ApiDescriptions;
                 var apiDescription = apiDescriptions.FirstOrDefault(api => string.Equals(api.GetFriendlyId(), apiDescriptionId, StringComparison.OrdinalIgnoreCase));
@@ -441,9 +440,7 @@ namespace Ants.Web.Areas.HelpPage
             var apis = config.Services.GetApiExplorer().ApiDescriptions;
             foreach (var api in apis)
             {
-                ApiParameterDescription parameterDescription;
-                Type parameterType;
-                if (TryGetResourceParameter(api, config, out parameterDescription, out parameterType))
+                if (TryGetResourceParameter(api, config, out ApiParameterDescription parameterDescription, out Type parameterType))
                 {
                     modelGenerator.GetOrCreateModelDescription(parameterType);
                 }

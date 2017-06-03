@@ -16,8 +16,7 @@ namespace Ants
     {
         private HttpContent GetContent(IDictionary<string, string[]> headers)
         {
-            MediaTypeHeaderValue contentType;
-            var contentTypeSet = headers.TryParsingContentTypeHeader(out contentType);
+            var contentTypeSet = headers.TryParsingContentTypeHeader(out MediaTypeHeaderValue contentType);
 
             HttpContent returnValue = null;
             var body = ResponseStream.ToArray();
@@ -26,7 +25,7 @@ namespace Ants
             {
                 if (contentType.MediaType.StartsWith("multipart/", StringComparison.OrdinalIgnoreCase))
                 {
-                    //this is not implemented at the moment, mostly because it is extremely unusual to for a server to respond using a multi part form
+                    //this is not implemented at the moment, mostly because it is extremely unusual for a server to respond using a multi part form
                     throw new NotImplementedException("Content-Type: multipart/* is not supported as a response.");
                 }
 
@@ -48,8 +47,7 @@ namespace Ants
                 returnValue.Headers.ContentType = contentType;
             }
 
-            ICollection<string> allow;
-            if (headers.TryParsingAllowHeader(out allow))
+            if (headers.TryParsingAllowHeader(out ICollection<string> allow))
             {
                 foreach (var method in allow)
                 {
@@ -57,14 +55,12 @@ namespace Ants
                 }
             }
 
-            ContentDispositionHeaderValue contentDisposition;
-            if (headers.TryParsingContentDispositionHeader(out contentDisposition))
+            if (headers.TryParsingContentDispositionHeader(out ContentDispositionHeaderValue contentDisposition))
             {
                 returnValue.Headers.ContentDisposition = contentDisposition;
             }
 
-            ICollection<string> contentEncoding;
-            if (headers.TryParsingContentEncodingHeader(out contentEncoding))
+            if (headers.TryParsingContentEncodingHeader(out ICollection<string> contentEncoding))
             {
                 foreach (var encoding in contentEncoding)
                 {
@@ -72,8 +68,7 @@ namespace Ants
                 }
             }
 
-            ICollection<string> contentLanguage;
-            if (headers.TryParsingContentLanguageHeader(out contentLanguage))
+            if (headers.TryParsingContentLanguageHeader(out ICollection<string> contentLanguage))
             {
                 foreach (var language in contentLanguage)
                 {
@@ -81,38 +76,32 @@ namespace Ants
                 }
             }
 
-            long? contentLength;
-            if (headers.TryParsingContentLengthHeader(out contentLength))
+            if (headers.TryParsingContentLengthHeader(out long? contentLength))
             {
                 returnValue.Headers.ContentLength = contentLength;
             }
 
-            Uri contentLocation;
-            if (headers.TryParsingContentLocationHeader(out contentLocation))
+            if (headers.TryParsingContentLocationHeader(out Uri contentLocation))
             {
                 returnValue.Headers.ContentLocation = contentLocation;
             }
 
-            byte[] contentMd5;
-            if (headers.TryParsingContentMd5Header(out contentMd5))
+            if (headers.TryParsingContentMd5Header(out byte[] contentMd5))
             {
                 returnValue.Headers.ContentMD5 = contentMd5;
             }
 
-            ContentRangeHeaderValue contentRange;
-            if (headers.TryParsingContentRangeHeader(out contentRange))
+            if (headers.TryParsingContentRangeHeader(out ContentRangeHeaderValue contentRange))
             {
                 returnValue.Headers.ContentRange = contentRange;
             }
 
-            DateTimeOffset? expires;
-            if (headers.TryParsingExpiresHeader(out expires))
+            if (headers.TryParsingExpiresHeader(out DateTimeOffset? expires))
             {
                 returnValue.Headers.Expires = expires;
             }
 
-            DateTimeOffset? lastModified;
-            if (headers.TryParsingLastModifiedHeader(out lastModified))
+            if (headers.TryParsingLastModifiedHeader(out DateTimeOffset? lastModified))
             {
                 returnValue.Headers.LastModified = lastModified;
             }

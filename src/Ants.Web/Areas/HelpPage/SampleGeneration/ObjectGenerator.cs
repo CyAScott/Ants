@@ -325,9 +325,8 @@ namespace Ants.Web.Areas.HelpPage.SampleGeneration
 
         private static object GenerateComplexObject(Type type, Dictionary<Type, object> createdObjectReferences)
         {
-            object result;
 
-            if (createdObjectReferences.TryGetValue(type, out result))
+            if (createdObjectReferences.TryGetValue(type, out object result))
             {
                 // The object has been created already, just return it. This will handle the circular reference case.
                 return result;

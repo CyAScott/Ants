@@ -18,10 +18,8 @@ namespace Ants
                 return lengthAsNullable.Value;
             }
 
-            long length;
-            string lengthAsString;
-            if (RequestHeaders.TryGetValue("Content-Length", out lengthAsString) &&
-                long.TryParse(lengthAsString, out length) &&
+            if (RequestHeaders.TryGetValue("Content-Length", out string lengthAsString) &&
+                long.TryParse(lengthAsString, out long length) &&
                 length >= 0)
             {
                 return length;
@@ -116,8 +114,7 @@ namespace Ants
         }
         public override string GetUnknownRequestHeader(string name)
         {
-            string value;
-            return RequestHeaders.TryGetValue(name, out value) ? value : null;
+            return RequestHeaders.TryGetValue(name, out string value) ? value : null;
         }
         public override string GetLocalAddress()
         {

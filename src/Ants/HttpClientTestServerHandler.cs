@@ -22,8 +22,7 @@ namespace Ants
                 key += $":{request.RequestUri.Port}";
             }
 
-            HttpApplicationRequestQueue applicationRequestQueue;
-            if (!AspNetTestServer.Applications.TryGetValue(key, out applicationRequestQueue))
+            if (!AspNetTestServer.Applications.TryGetValue(key, out HttpApplicationRequestQueue applicationRequestQueue))
             {
                 return createBadGatewayResponseMessage(serverExists: false);
             }

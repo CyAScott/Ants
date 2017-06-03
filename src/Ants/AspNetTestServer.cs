@@ -180,13 +180,12 @@ namespace Ants
             where THttpApplication : HttpApplication, new()
         {
             var app = GetApplication<THttpApplication>();
-            if (app == null || !Applications.TryRemove(app.Domain, out app))
+            if (app == null ||
+                !Applications.TryRemove(app.Domain, out app) ||
+                !CloseTasks.TryGetValue(app.Domain, out TaskCompletionSource<object> onCloseTask))
             {
                 return Task.FromResult(0);
             }
-
-            var onCloseTask = new TaskCompletionSource<object>();
-            CloseTasks[app.Domain] = onCloseTask;
 
             app.Stop(true);
 

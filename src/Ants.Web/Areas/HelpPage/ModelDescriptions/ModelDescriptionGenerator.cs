@@ -116,9 +116,8 @@ namespace Ants.Web.Areas.HelpPage.ModelDescriptions
                 modelType = underlyingType;
             }
 
-            ModelDescription modelDescription;
             var modelName = ModelNameHelper.GetModelName(modelType);
-            if (GeneratedModels.TryGetValue(modelName, out modelDescription))
+            if (GeneratedModels.TryGetValue(modelName, out ModelDescription modelDescription))
             {
                 if (modelType != modelDescription.ModelType)
                 {
@@ -242,8 +241,7 @@ namespace Ants.Web.Areas.HelpPage.ModelDescriptions
 
         private string CreateDefaultDocumentation(Type type)
         {
-            string documentation;
-            if (defaultTypeDocumentation.TryGetValue(type, out documentation))
+            if (defaultTypeDocumentation.TryGetValue(type, out string documentation))
             {
                 return documentation;
             }
@@ -262,8 +260,7 @@ namespace Ants.Web.Areas.HelpPage.ModelDescriptions
             var attributes = property.GetCustomAttributes();
             foreach (var attribute in attributes)
             {
-                Func<object, string> textGenerator;
-                if (annotationTextGenerator.TryGetValue(attribute.GetType(), out textGenerator))
+                if (annotationTextGenerator.TryGetValue(attribute.GetType(), out Func<object, string> textGenerator))
                 {
                     annotations.Add(
                         new ParameterAnnotation

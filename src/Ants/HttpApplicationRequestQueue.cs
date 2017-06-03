@@ -86,8 +86,7 @@ namespace Ants
         }
         public void Init(string firstRouteToLoad)
         {
-            AppDomain.CurrentDomain.DomainUnload += (sender, args) => 
-            Worker.DomainClosed(Domain);
+            AppDomain.CurrentDomain.DomainUnload += (sender, args) => Worker.DomainClosed(Domain);
 
             using (var stream = new MemoryStream())
             using (var output = new StreamWriter(stream))
@@ -109,8 +108,7 @@ namespace Ants
             enabled = false;
             while (!requests.IsEmpty)
             {
-                Message request;
-                if (requests.TryDequeue(out request))
+                if (requests.TryDequeue(out Message request))
                 {
                     request?.EndOfRequestWithShutDown();
                 }

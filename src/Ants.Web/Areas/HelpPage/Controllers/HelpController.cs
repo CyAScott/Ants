@@ -50,8 +50,7 @@ namespace Ants.Web.Areas.HelpPage.Controllers
             if (!string.IsNullOrEmpty(modelName))
             {
                 var modelDescriptionGenerator = Configuration.GetModelDescriptionGenerator();
-                ModelDescription modelDescription;
-                if (modelDescriptionGenerator.GeneratedModels.TryGetValue(modelName, out modelDescription))
+                if (modelDescriptionGenerator.GeneratedModels.TryGetValue(modelName, out ModelDescription modelDescription))
                 {
                     return View(modelDescription);
                 }
