@@ -1,4 +1,4 @@
-# ![Ants](https://github.com/CyAScott/Ants/blob/master/assets/ants-64.png?raw=true "Ants") Asp.Net Test Server (ANTS)
+# [![Ants](https://github.com/CyAScott/Ants/blob/master/assets/ants-64.png?raw=true "Ants")](https://www.nuget.org/packages/Ants/) Asp.Net Test Server (ANTS)
 
 [![Build status](https://ci.appveyor.com/api/projects/status/sidmvovywlxnkrj2?svg=true)](https://ci.appveyor.com/project/CyAScott/ants)
 
@@ -39,3 +39,8 @@ public static class AntsExample
 ```
 
 The example above creates an App Domain for your http application to run in, using the same method that IIS does. Once the application is started, you can get an HttpClient for making http calls to the Asp.Net application.
+
+
+#### Icon Created By
+
+Icons made by [Freepik](http://www.freepik.com) from [www.flaticon.com](http://www.flaticon.com) is licensed by [CC 3.0 B](http://creativecommons.org/licenses/by/3.0/)
