@@ -1,0 +1,34 @@
+﻿@model Ants.Web.Models.MvcResponse
+@{
+    ViewBag.Title = "Test Mvc Controller";
+}
+
+<h2>Test Mvc Controller</h2>
+
+@if (Model != null)
+{
+<h2>Posted Data:</h2>
+<h6>Created On: <span id="@nameof(Model.CreatedOn)">@Model.CreatedOn</span></h6>
+<h6>Id: <span id="@nameof(Model.Id)">@Model.Id</span></h6>
+<h6>Name: <span id="@nameof(Model.Name)">@Model.Name</span></h6>
+}
+
+<hr/>
+<h3>Multi Part Form Post</h3>
+
+@using (Html.BeginForm("Index", "TestMvc", FormMethod.Post, new { enctype = "multipart/form-data" }))
+{
+<label>Id: <input name="@nameof(Model.Id)" style="width: 400px" value="@(Model?.Id ?? Guid.NewGuid())"/></label><br/>
+<label>Name: <input name="@nameof(Model.Name)" style="width: 400px" value="@(Model?.Name ?? "John Doe")"/></label><br/>
+<input type="submit" value="Post"/>
+}
+
+<hr/>
+<h3>Url Encoded Form Post</h3>
+
+@using (Html.BeginForm("Index", "TestMvc", FormMethod.Post))
+{
+    <label>Id: <input name="@nameof(Model.Id)" style="width: 400px" value="@(Model?.Id ?? Guid.NewGuid())"/></label><br/>
+    <label>Name: <input name="@nameof(Model.Name)" style="width: 400px" value="@(Model?.Name ?? "John Doe")"/></label><br/>
+    <input type="submit" value="Post"/>
+}

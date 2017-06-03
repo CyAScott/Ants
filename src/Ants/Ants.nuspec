@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package >
+	<metadata>
+		<id>Ants</id>
+		<version>0.0.0</version>
+		<title>Asp.Net Test Server (Ants)</title>
+		<authors>cy.a.scott</authors>
+		<owners>cy.a.scott</owners>
+		<licenseUrl>https://github.com/CyAScott/Ants/blob/master/LICENSE</licenseUrl>
+		<projectUrl>https://github.com/CyAScott/Ants</projectUrl>
+		<requireLicenseAcceptance>false</requireLicenseAcceptance>
+		<description>A test server for hosting an ASP.NET application in process for testing.</description>
+		<copyright>Copyright 2017</copyright>
+		<tags>Asp.Net Testing Integration Server</tags>
+	</metadata>
+	<files>
+		<file src="bin\Release\Ants.*" target="lib\net452" />
+	</files>
+</package>
