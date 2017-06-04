@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System;
+using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,27 +17,25 @@ namespace Ants
         }
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            var key = request.RequestUri.Host;
+            var domain = request.RequestUri.Host;
             if (!request.RequestUri.IsDefaultPort)
             {
-                key += $":{request.RequestUri.Port}";
-            }
-
-            if (!AspNetTestServer.Applications.TryGetValue(key, out HttpApplicationRequestQueue applicationRequestQueue))
-            {
-                return createBadGatewayResponseMessage(serverExists: false);
-            }
-
-            if (applicationRequestQueue == null)
-            {
-                return createBadGatewayResponseMessage(serverExists: true);
+                domain += $":{request.RequestUri.Port}";
             }
 
             var message = new Message(request, request.Content == null ? null : await request.Content.ReadAsStreamAsync().ConfigureAwait(false));
 
-            applicationRequestQueue.Enqueue(message);
-
-            return await message.Task.Task.ConfigureAwait(false);
+            switch (AspNetTestServer.DefaultDomainWorker.Enqueue(domain, message))
+            {
+                case EnqueueResults.ApplicationNotFound:
+                    return createBadGatewayResponseMessage(serverExists: false);
+                case EnqueueResults.ApplicationNotInitialize:
+                    return createBadGatewayResponseMessage(serverExists: true);
+                case EnqueueResults.Enqueued:
+                    return await message.Task.Task.ConfigureAwait(false);
+                default:
+                    throw new NotSupportedException();
+            }
         }
     }
 }

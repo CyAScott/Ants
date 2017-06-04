@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Specialized;
+using System.Configuration;
 using System.Web;
 using System.Web.Http;
 using System.Web.Mvc;
@@ -11,6 +13,8 @@ namespace Ants.Web
 {
     public class Global : HttpApplication
     {
+        public static NameValueCollection AppSettings = ConfigurationManager.AppSettings;
+
         protected void Application_AuthenticateRequest(object sender, EventArgs e)
         {
 #if DEBUG

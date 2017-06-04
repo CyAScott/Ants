@@ -44,6 +44,7 @@
     <Compile Include="HttpApplicationRequestQueue.cs" />
     <Compile Include="HttpClientTestServerHandler.cs" />
     <Compile Include="HttpWorkerRequestMessage.cs" />
+    <Compile Include="AppDomainWorker.cs" />
     <Compile Include="Message.cs" />
     <Compile Include="MessageHandledException.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

@@ -56,7 +56,9 @@
     <Reference Include="System.XML" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ExampleTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="TestBootstrap.cs" />
     <Compile Include="TestHelper.cs" />
     <Compile Include="TestControllers.cs" />
     <Compile Include="TestStaticsContent.cs" />

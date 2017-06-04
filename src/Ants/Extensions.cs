@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using System.Net.Http.Headers;
-using System.Runtime.Serialization;
+using System.Reflection;
+using System.Web;
+using System.Web.Hosting;
 
 namespace Ants
 {
@@ -33,19 +34,7 @@ namespace Ants
             "d MMM yyyy H:m:s zzz", // RFC 5322 no day-of-week
             "d MMM yyyy H:m:s", // RFC 5322 no day-of-week, no zone
         };
-
-        internal static Dictionary<TKey, TValue> GetValue<TKey, TValue>(this SerializationInfo info, string name, IEqualityComparer<TKey> comparer)
-        {
-            var items = (Tuple<TKey, TValue>[])info.GetValue(name, typeof(Tuple<TKey, TValue>[]));
-
-            return items.ToDictionary(item => item.Item1, item => item.Item2, comparer);
-        }
-        internal static void AddValue<TKey, TValue>(this SerializationInfo info, string name, IDictionary<TKey, TValue> dictionary)
-        {
-            info.AddValue(name, dictionary
-                .Select(pair => new Tuple<TKey, TValue>(pair.Key, pair.Value))
-                .ToArray(), typeof(Tuple<TKey, TValue>[]));
-        }
+        internal static readonly Type BuildManagerHostType = typeof(HttpRuntime).Assembly.GetType("System.Web.Compilation.BuildManagerHost");
 
         /// <summary>
         /// If the Allow header key exists, the value will be parsed.
@@ -220,6 +209,18 @@ namespace Ants
                 headers.Remove(key);
             }
             return returnValue;
+        }
+
+        /// <summary>
+        /// Used to register assemblies using the build manager host.
+        /// </summary>
+        public static void RegisterAssembly(this IRegisteredObject buildManagerHost, Assembly assembly)
+        {
+            BuildManagerHostType.InvokeMember("RegisterAssembly",
+                BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.NonPublic,
+                null,
+                buildManagerHost,
+                new object[] { assembly.FullName, assembly.Location });
         }
     }
 }
