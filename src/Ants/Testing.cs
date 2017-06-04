@@ -6,6 +6,7 @@ using System;
 
 namespace Ants
 {
+    //used for testing the ANTS framework
     public class Testing : MarshalByRefObject
     {
         private static Testing variables;

@@ -1,8 +1,6 @@
 ﻿using System;
 using System.IO;
-using System.Threading.Tasks;
 #if DEBUG
-using System.Diagnostics;
 using NUnit.Framework;
 #endif
 

@@ -57,7 +57,8 @@ namespace Ants
         }
 #endif
 
-        public DefaultDomainWorker Worker { get; set; }
+        public ApplicationManager ApplicationManager { get; set; }
+        public DefaultDomainWorker DefaultDomainWorker { get; set; }
         public Type AppType { get; set; }
         public int MaxThreads { get; set; }
         public string Domain { get; set; }
@@ -84,10 +85,15 @@ namespace Ants
                 Interlocked.Decrement(ref threadCount);
             }
         }
-        public void Init(string firstRouteToLoad)
+        public void Init()
         {
-            AppDomain.CurrentDomain.DomainUnload += (sender, args) => Worker.DomainClosed(Domain);
+            AppDomain.CurrentDomain.DomainUnload += (sender, args) => DefaultDomainWorker.DomainClosed(Domain);
 
+            AspNetTestServer.ApplicationManager = ApplicationManager;
+            AspNetTestServer.DefaultDomainWorker = DefaultDomainWorker;
+        }
+        public void Start(string firstRouteToLoad)
+        {
             using (var stream = new MemoryStream())
             using (var output = new StreamWriter(stream))
             {

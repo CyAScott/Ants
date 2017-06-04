@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Web;
+using System.Web.Hosting;
 
 namespace Ants
 {
@@ -12,6 +14,18 @@ namespace Ants
     /// </summary>
     public class StartApplicationArgs
     {
+        internal static readonly ConcurrentDictionary<Type, object> DefaultAppDomainWorkers = new ConcurrentDictionary<Type, object>();
+        internal virtual void InvokeAfterApplicationStartsOnDomainWorker()
+        {
+        }
+        internal void Sanitize<THttpApplication>()
+            where THttpApplication : HttpApplication, new()
+        {
+            if (string.IsNullOrEmpty(Domain))
+            {
+                Domain = typeof(THttpApplication).GUID.ToString();
+            }
+        }
         internal void ThrowOnValidationError()
         {
             if (ThreadCount <= 0)
@@ -35,13 +49,15 @@ namespace Ants
             }
         }
 
-        internal void Sanitize<THttpApplication>()
-            where THttpApplication : HttpApplication, new()
+        /// <summary>
+        /// When overridden by a derived class, this method will be invoked on the default <see cref="AppDomain"/> and to create
+        /// a domain worker.
+        /// </summary>
+        /// <param name="buildManagerHost">Provides a set of methods to help manage the compilation of an ASP.NET application.</param>
+        /// <param name="appDomain">The <see cref="AppDomain"/> the ASP.NET application will run on.</param>
+        protected internal virtual void BootstrapDomainWorker(IRegisteredObject buildManagerHost, AppDomain appDomain)
         {
-            if (string.IsNullOrEmpty(Domain))
-            {
-                Domain = typeof(THttpApplication).GUID.ToString();
-            }
+            //when the start arguments include a domain worker, this method will be overridden to create that domain work
         }
 
         /// <summary>
@@ -49,10 +65,11 @@ namespace Ants
         /// This code runs in the default domain.
         /// The argument is a reference to the <see cref="AppDomain"/> the ASP.NET application will run in.
         /// </summary>
+        [Obsolete("Use the AppDomainWorker instead.")]
         public Action<AppDomain> PreInitialize { get; set; }
 
         /// <summary>
-        /// Optional. Assemblies to laod into the <see cref="AppDomain"/> that houses the ASP.NET application.
+        /// Optional. Assemblies to load into the <see cref="AppDomain"/> that houses the ASP.NET application.
         /// </summary>
         public IEnumerable<Assembly> AssembliesToLoad { get; set; }
 
@@ -74,8 +91,8 @@ namespace Ants
         public string FirstRouteToLoad { get; set; } = string.Empty;
 
         /// <summary>
-        /// The project directory where the ASP.NET application.
-        /// This folder is used to host the simulated server just like IIS or IIS express does for hosting the site.
+        /// The project directory where the ASP.NET application exists.
+        /// This folder is used by the simulated server just like IIS or IIS express does for hosting the site.
         /// </summary>
         public string PhysicalDirectory { get; set; }
 
@@ -84,5 +101,58 @@ namespace Ants
         /// The default value is "/".
         /// </summary>
         public string VirtualDirectory { get; set; } = "/";
+    }
+
+    /// <summary>
+    /// The arguments for starting an ASP.NET application.
+    /// </summary>
+    /// <typeparam name="TAppDomainWorker">A worker that will be created on the ASP.NET application <see cref="AppDomain"/>.</typeparam>
+    public class StartApplicationArgs<TAppDomainWorker> : StartApplicationArgs
+        where TAppDomainWorker : AppDomainWorker, new()
+    {
+        internal override void InvokeAfterApplicationStartsOnDomainWorker()
+        {
+            appDomainWorker.AfterApplicationStarts();
+        }
+        private TAppDomainWorker appDomainWorker;
+
+        /// <summary>
+        /// Creates a <see cref="TAppDomainWorker"/> on the same <see cref="AppDomain"/> as the target ASP.NET application.
+        /// </summary>
+        /// <param name="buildManagerHost">Provides a set of methods to help manage the compilation of an ASP.NET application.</param>
+        /// <param name="appDomain">The <see cref="AppDomain"/> the ASP.NET application will run on.</param>
+        /// <exception cref="ApplicationException">Failed to load the App Domain worker.</exception>
+        protected internal override void BootstrapDomainWorker(IRegisteredObject buildManagerHost, AppDomain appDomain)
+        {
+            //register the assembly for the domain worker
+            buildManagerHost.RegisterAssembly(typeof(TAppDomainWorker).Assembly);
+
+            var applicationManager = AspNetTestServer.ApplicationManager;
+
+            //create the domain worker on the target app domain
+            appDomainWorker = applicationManager.CreateObject(Domain, typeof(TAppDomainWorker), VirtualDirectory, PhysicalDirectory, false) as TAppDomainWorker;
+            if (appDomainWorker == null)
+            {
+                throw new ApplicationException("Failed to load the App Domain worker.");
+            }
+
+            //connect the ANTS domain worker (used for access to other ASP.NET applications across domains)
+            appDomainWorker.DefaultDomainWorker = AspNetTestServer.DefaultDomainWorker;
+
+            //if the domain worker includes a default domain worker property then
+            var defaultAppDomainWorkerType = appDomainWorker.DefaultAppDomainWorkerType;
+            if (defaultAppDomainWorkerType != null)
+            {
+                //create or get singleton instance of that default domain worker
+                if (!DefaultAppDomainWorkers.TryGetValue(defaultAppDomainWorkerType, out object worker))
+                {
+                    DefaultAppDomainWorkers[defaultAppDomainWorkerType] = worker = Activator.CreateInstance(defaultAppDomainWorkerType);
+                }
+                appDomainWorker.SetDefaultAppDomainWorker(worker);
+            }
+
+            //bootstrap the test configurations
+            appDomainWorker.BeforeApplicationStarts();
+        }
     }
 }

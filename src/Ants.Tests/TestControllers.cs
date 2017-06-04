@@ -20,7 +20,7 @@ namespace Ants.Tests
     [TestFixture]
     public class TestControllers
     {
-        private async Task testApi(HttpClient client, HttpMethod method, ApiRequest body = null)
+        private static async Task testApi(HttpClient client, HttpMethod method, ApiRequest body = null)
         {
             var id = Guid.NewGuid();
 
@@ -88,7 +88,7 @@ namespace Ants.Tests
             TestHelper.EnsureServerStopped();
         }
 
-        private async Task tesMvc(HttpClient client, HttpMethod method, MvcRequest body = null, bool multipartForm = true)
+        private static async Task testMvc(HttpClient client, HttpMethod method, MvcRequest body = null, bool multipartForm = true)
         {
             using (var request = new HttpRequestMessage(method, "/"))
             {
@@ -157,12 +157,12 @@ namespace Ants.Tests
 
             using (var client = AspNetTestServer.GetHttpClient<Global>())
             {
-                await tesMvc(client, HttpMethod.Get).ConfigureAwait(false);
-                await tesMvc(client, HttpMethod.Post, new MvcRequest
+                await testMvc(client, HttpMethod.Get).ConfigureAwait(false);
+                await testMvc(client, HttpMethod.Post, new MvcRequest
                 {
                     Name = NameGenerator.AnyName()
                 }).ConfigureAwait(false);
-                await tesMvc(client, HttpMethod.Post, new MvcRequest
+                await testMvc(client, HttpMethod.Post, new MvcRequest
                 {
                     Name = NameGenerator.AnyName()
                 },

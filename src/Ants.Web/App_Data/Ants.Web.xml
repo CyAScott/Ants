@@ -512,6 +512,17 @@
             <param name="id">A GUID</param>
             <param name="request">The body of the post.</param>
         </member>
+        <member name="T:Ants.Web.Controllers.TestConfigsController">
+            <summary>
+            API controller for reading config settings.
+            </summary>
+        </member>
+        <member name="M:Ants.Web.Controllers.TestConfigsController.Get">
+            <summary>
+            Gets the AppSettings.
+            </summary>
+            <returns></returns>
+        </member>
         <member name="T:Ants.Web.Controllers.TestMvcController">
             <summary>
             Example MVC controller.
