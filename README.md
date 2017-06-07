@@ -1,6 +1,6 @@
 # [![Ants](https://github.com/CyAScott/Ants/blob/master/assets/ants-64.png?raw=true "Ants")](https://www.nuget.org/packages/Ants/) Asp.Net Test Server (ANTS)
 
-[![Build status](https://ci.appveyor.com/api/projects/status/sidmvovywlxnkrj2?svg=true)](https://ci.appveyor.com/project/CyAScott/ants)
+[![Build status](https://ci.appveyor.com/api/projects/status/sidmvovywlxnkrj2?svg=true)](https://ci.appveyor.com/project/CyAScott/ants) [![NuGet Badge](https://buildstats.info/nuget/Ants)](https://www.nuget.org/packages/Ants/)
 
 ANTS is a framework for running an Asp.Net application in process instead of [IIS](https://www.iis.net/). The target Asp.Net application will accept http requests from a custom [HttpClient](https://msdn.microsoft.com/en-us/library/system.net.http.httpclient(v=vs.118).aspx) created by ANTS. This will allow you to test your application without the need to open up access to sockets.
 
