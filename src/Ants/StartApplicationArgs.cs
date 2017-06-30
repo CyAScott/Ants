@@ -12,7 +12,7 @@ namespace Ants
     /// <summary>
     /// The arguments for starting an ASP.NET application.
     /// </summary>
-    public class StartApplicationArgs
+    public class StartApplicationArgs : MarshalByRefObject
     {
         internal static readonly ConcurrentDictionary<Type, object> DefaultAppDomainWorkers = new ConcurrentDictionary<Type, object>();
         internal virtual void InvokeAfterApplicationStartsOnDomainWorker()
@@ -86,9 +86,10 @@ namespace Ants
 
         /// <summary>
         /// The first route to load to start the ASP.NET application.
-        /// The default value is <see cref="string.Empty"/>.
+        /// The default value is "favicon.ico".
+        /// If the value is null then no route will be loaded to start the http application.
         /// </summary>
-        public string FirstRouteToLoad { get; set; } = string.Empty;
+        public string FirstRouteToLoad { get; set; } = "favicon.ico";
 
         /// <summary>
         /// The project directory where the ASP.NET application exists.
@@ -117,7 +118,7 @@ namespace Ants
         private TAppDomainWorker appDomainWorker;
 
         /// <summary>
-        /// Creates a <see cref="TAppDomainWorker"/> on the same <see cref="AppDomain"/> as the target ASP.NET application.
+        /// Creates a TAppDomainWorker on the same <see cref="AppDomain"/> as the target ASP.NET application.
         /// </summary>
         /// <param name="buildManagerHost">Provides a set of methods to help manage the compilation of an ASP.NET application.</param>
         /// <param name="appDomain">The <see cref="AppDomain"/> the ASP.NET application will run on.</param>
@@ -125,7 +126,7 @@ namespace Ants
         protected internal override void BootstrapDomainWorker(IRegisteredObject buildManagerHost, AppDomain appDomain)
         {
             //register the assembly for the domain worker
-            buildManagerHost.RegisterAssembly(typeof(TAppDomainWorker).Assembly);
+            buildManagerHost.RegisterAssembly(appDomain, typeof(TAppDomainWorker).Assembly);
 
             var applicationManager = AspNetTestServer.ApplicationManager;
 
@@ -135,6 +136,7 @@ namespace Ants
             {
                 throw new ApplicationException("Failed to load the App Domain worker.");
             }
+            appDomainWorker.StartApplicationArgs = this;
 
             //connect the ANTS domain worker (used for access to other ASP.NET applications across domains)
             appDomainWorker.DefaultDomainWorker = AspNetTestServer.DefaultDomainWorker;

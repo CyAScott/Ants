@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -6,7 +7,7 @@ using System.Net;
 using System.Text;
 using System.Web;
 
-namespace Ants
+namespace Ants.HttpRequestQueue
 {
     internal class HttpWorkerRequestMessage : HttpWorkerRequest
     {
@@ -42,6 +43,7 @@ namespace Ants
         {
             HttpMethod = parent.HttpMethod;
             HttpVersion = parent.HttpVersion;
+            Message = parent;
             Parent = parent;
             RequestHeaders = parent.RequestHeadersAsTuples().ToDictionary(pair => pair.Item1, pair => pair.Item2, StringComparer.OrdinalIgnoreCase);
             Url = parent.Url;
@@ -64,6 +66,8 @@ namespace Ants
                 offset += parent.RequestStream.Read(preLoad, offset, (int)length.Value - offset);
             }
         }
+
+        public Dictionary<string, string[]> ResponseHeaders => Message.ResponseHeadersAsTuples().ToDictionary(pair => pair.Item1, pair => pair.Item2, StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, string> RequestHeaders { get; }
         public Message Parent { get; private set; }
         public Uri Url { get; }
@@ -197,6 +201,7 @@ namespace Ants
                 Parent?.ResponseStream.Write(buffer, 0, read);
             }
         }
+        public readonly Message Message;
         public string HttpMethod { get; }
         public string HttpVersion { get; }
     }

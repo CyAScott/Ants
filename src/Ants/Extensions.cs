@@ -214,8 +214,9 @@ namespace Ants
         /// <summary>
         /// Used to register assemblies using the build manager host.
         /// </summary>
-        public static void RegisterAssembly(this IRegisteredObject buildManagerHost, Assembly assembly)
+        public static void RegisterAssembly(this IRegisteredObject buildManagerHost, AppDomain appDomain, Assembly assembly)
         {
+            appDomain.Load(assembly.GetName());
             BuildManagerHostType.InvokeMember("RegisterAssembly",
                 BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.NonPublic,
                 null,
