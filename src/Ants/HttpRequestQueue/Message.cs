@@ -10,7 +10,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace Ants
+namespace Ants.HttpRequestQueue
 {
     internal class Message : MarshalByRefObject
     {
@@ -128,11 +128,21 @@ namespace Ants
                 .Select(group => new Tuple<string, string>(group.Key, string.Join("; ", group.SelectMany(item => item.Value))))
                 .ToArray();
         }
+        public Tuple<string, string[]>[] ResponseHeadersAsTuples()
+        {
+            return ResponseHeaders
+                .Select(pair => new Tuple<string, string[]>(pair.Key, pair.Value))
+                .ToArray();
+        }
         public Uri Url => request.RequestUri;
         public long? ContentLength => request.Content?.Headers?.ContentLength;
         public string HttpMethod => request.Method.Method;
         public string HttpVersion => $"HTTP/{request.Version}";
         public string ReasonPhrase { get; set; }
+        public void ClearHeaders()
+        {
+            ResponseHeaders.Clear();
+        }
         public void EndOfRequest()
         {
             ResponseStream.Close();

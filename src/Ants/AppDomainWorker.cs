@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Web.Hosting;
+using Ants.HttpRequestQueue;
 
 namespace Ants
 {
@@ -17,7 +18,13 @@ namespace Ants
         }
 
         /// <summary>
-        /// Is called when after the ASP.NET application starts.
+        /// The arguments for starting the ASP.NET application.
+        /// </summary>
+        public StartApplicationArgs StartApplicationArgs { get; internal set; }
+
+        /// <summary>
+        /// Is called when after the ASP.NET application starts,
+        /// unless the LoadFirstRoute value in the start arguments was set to false.
         /// </summary>
         public virtual void AfterApplicationStarts()
         {

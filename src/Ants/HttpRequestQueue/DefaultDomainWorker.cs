@@ -2,7 +2,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace Ants
+namespace Ants.HttpRequestQueue
 {
     internal class DefaultDomainWorker : MarshalByRefObject
     {
@@ -24,7 +24,7 @@ namespace Ants
         }
         public string GetDomainFromType(string typeFullName)
         {
-            return AspNetTestServer.Applications.Values.FirstOrDefault(queue => queue.AppType.FullName == typeFullName)?.Domain;
+            return AspNetTestServer.Applications.Values.FirstOrDefault(queue => queue.AppType.AssemblyQualifiedName == typeFullName)?.Domain;
         }
         public void DomainClosed(string domain)
         {

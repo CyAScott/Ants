@@ -1,11 +1,16 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Reflection;
 using System.Threading.Tasks;
 using System.Web;
 using System.Web.Hosting;
+using Ants.AutoLoader;
+using Ants.HttpRequestQueue;
 
 namespace Ants
 {
@@ -20,9 +25,45 @@ namespace Ants
         {
             return Applications.Values.FirstOrDefault(queue => queue.AppType == typeof(THttpApplication));
         }
+        internal static Lazy<Tuple<Assembly, AutoLoadIntoAntsAttribute>[]> AutoLoadAssemblies = new Lazy<Tuple<Assembly, AutoLoadIntoAntsAttribute>[]>(() => getAutoLoadAssemblies());
         internal static readonly ConcurrentDictionary<string, HttpApplicationRequestQueue> Applications = new ConcurrentDictionary<string, HttpApplicationRequestQueue>(StringComparer.OrdinalIgnoreCase);
         internal static readonly ConcurrentDictionary<string, TaskCompletionSource<object>> CloseTasks = new ConcurrentDictionary<string, TaskCompletionSource<object>>(StringComparer.OrdinalIgnoreCase);
 
+        private static Tuple<Assembly, AutoLoadIntoAntsAttribute>[] getAutoLoadAssemblies(params Assembly[] assemblies)
+        {
+            return assemblies
+            .Concat(AppDomain
+                .CurrentDomain
+                .GetAssemblies())
+            .Concat(new []
+                {
+                    Assembly.GetCallingAssembly(),
+                    Assembly.GetEntryAssembly(),
+                    Assembly.GetExecutingAssembly()
+                })
+            .Where(assembly => assembly != null)
+            .SelectMany(assembly => assembly
+                .GetReferencedAssemblies()
+                .Select(assemblyName => assemblyName.FullName)
+                .Concat(new []{ assembly.FullName }))
+            .Distinct()
+            .OrderBy(assemblyName => assemblyName)
+            .Select(assemblyName =>
+            {
+                try
+                {
+                    var assembly = Assembly.Load(assemblyName.ToString());
+                    var attribute = assembly?.GetCustomAttribute<AutoLoadIntoAntsAttribute>();
+                    return attribute == null ? null : new Tuple<Assembly, AutoLoadIntoAntsAttribute>(assembly, attribute);
+                }
+                catch
+                {
+                    return null;
+                }
+            })
+            .Where(tuple => tuple != null)
+            .ToArray();
+        }
         private static void throwIfNotDefaultAppDomain()
         {
             if (!IsDefaultAppDomain)
@@ -55,7 +96,7 @@ namespace Ants
 
             args = args ?? new StartApplicationArgs();
 
-            AppDomain returnValue;
+            AppDomain appDomain;
 
             lock (args)
             {
@@ -77,16 +118,44 @@ namespace Ants
                 //create the app domain for the ASP.NET application to run on
                 var buildManagerHost = ApplicationManager.CreateObject(args.Domain, Extensions.BuildManagerHostType, args.VirtualDirectory, args.PhysicalDirectory, true);
 
+                //get the app domain the target ASP.NET application will run in
+                appDomain = ApplicationManager.GetAppDomain(args.Domain);
+                appDomain.SetData("Ants.Domain", args.Domain);
+
                 //register the assembly for ANTS for the target app domain
                 var applicationRequestQueueType = typeof(HttpApplicationRequestQueue);
-                buildManagerHost.RegisterAssembly(applicationRequestQueueType.Assembly);
+                buildManagerHost.RegisterAssembly(appDomain, applicationRequestQueueType.Assembly);
+                
+                //register auto loaded assemblies
+                var autoLoadAssemblyHelpers = new List<AutoLoadAssemblyHelper>();
+                foreach (var tuple in AutoLoadAssemblies.Value.Where(tuple => !tuple.Item2.LoadAfterOtherAssemblies))
+                {
+                    buildManagerHost.RegisterAssembly(appDomain, tuple.Item1);
+                    if (tuple.Item2.AutoLoadAssemblyHelper != null &&
+                        typeof(AutoLoadAssemblyHelper).IsAssignableFrom(tuple.Item2.AutoLoadAssemblyHelper))
+                    {
+                        autoLoadAssemblyHelpers.Add((AutoLoadAssemblyHelper)appDomain.CreateInstanceAndUnwrap(tuple.Item1.FullName, tuple.Item2.AutoLoadAssemblyHelper.FullName));
+                    }
+                }
 
                 //register any assemblies provided by the developer
                 if (args.AssembliesToLoad != null)
                 {
-                    foreach (var assembly in args.AssembliesToLoad)
+                    foreach (var assembly in args.AssembliesToLoad
+                        .Where(assembly => assembly != applicationRequestQueueType.Assembly))
                     {
-                        buildManagerHost.RegisterAssembly(assembly);
+                        buildManagerHost.RegisterAssembly(appDomain, assembly);
+                    }
+                }
+
+                //register auto loaded assemblies
+                foreach (var tuple in AutoLoadAssemblies.Value.Where(tuple => tuple.Item2.LoadAfterOtherAssemblies))
+                {
+                    buildManagerHost.RegisterAssembly(appDomain, tuple.Item1);
+                    if (tuple.Item2.AutoLoadAssemblyHelper != null &&
+                        typeof(AutoLoadAssemblyHelper).IsAssignableFrom(tuple.Item2.AutoLoadAssemblyHelper))
+                    {
+                        autoLoadAssemblyHelpers.Add((AutoLoadAssemblyHelper)appDomain.CreateInstanceAndUnwrap(tuple.Item1.FullName, tuple.Item2.AutoLoadAssemblyHelper.FullName));
                     }
                 }
 
@@ -97,9 +166,6 @@ namespace Ants
                     throw new ApplicationException("Failed to load the request queue for processing HTTP requests.");
                 }
 
-                //get the app domain the target ASP.NET application will run in
-                returnValue = ApplicationManager.GetAppDomain(args.Domain);
-
 #if DEBUG
                 //used for testing the ANTS framework
                 applicationRequestQueue.SetTestingVariables(testingVariables);
@@ -109,27 +175,51 @@ namespace Ants
                 applicationRequestQueue.ApplicationManager = ApplicationManager;
                 applicationRequestQueue.AppType = typeof(THttpApplication);
                 applicationRequestQueue.Domain = args.Domain;
+                applicationRequestQueue.Helpers = autoLoadAssemblyHelpers.ToArray();
                 applicationRequestQueue.MaxThreads = args.ThreadCount;
                 applicationRequestQueue.DefaultDomainWorker = DefaultDomainWorker;
+                applicationRequestQueue.StartApplicationArgs = args;
 
                 applicationRequestQueue.Init();
 
                 //bootstrap the domain worker
-                args.BootstrapDomainWorker(buildManagerHost, returnValue);
+                args.BootstrapDomainWorker(buildManagerHost, appDomain);
 
                 //create the task that will complete when the app domain unloads (meaning the ASP.NET application has stopped)
                 CloseTasks[args.Domain] = new TaskCompletionSource<object>();
 
-                //start the ASP.NET application
-                applicationRequestQueue.Start(args.FirstRouteToLoad ?? "");
+                //execute auto loaded assembly code before the application starts
+                foreach (var helper in autoLoadAssemblyHelpers)
+                {
+                    helper.BeforeFirstRouteLoad();
+                }
 
                 //add the queue to the list of ASP.NET applications that are running
                 Applications[args.Domain] = applicationRequestQueue;
 
-                args.InvokeAfterApplicationStartsOnDomainWorker();
+                //start the ASP.NET application
+                if (args.FirstRouteToLoad != null)
+                {
+                    using (var client = GetHttpClient(args.Domain))
+                    using (var task = client.GetAsync(args.FirstRouteToLoad))
+                    {
+                        task.Wait();
+                        using (var results = task.Result)
+                        using (var resultsContent = results.Content)
+                        {
+#if DEBUG
+                            using (var readTask = resultsContent.ReadAsStringAsync())
+                            {
+                                readTask.Wait();
+                                Debug.WriteLine(readTask.Result);
+                            }
+#endif
+                        }
+                    }
+                }
             }
 
-            return returnValue;
+            return appDomain;
         }
 
         /// <summary>
@@ -144,7 +234,7 @@ namespace Ants
         public static HttpClient GetHttpClient<THttpApplication>()
             where THttpApplication : HttpApplication, new()
         {
-            var domain = DefaultDomainWorker?.GetDomainFromType(typeof(THttpApplication).FullName);
+            var domain = DefaultDomainWorker?.GetDomainFromType(typeof(THttpApplication).AssemblyQualifiedName);
             if (string.IsNullOrEmpty(domain))
             {
                 throw new ArgumentException("Unable to find the domain for this type.");
@@ -202,9 +292,47 @@ namespace Ants
         }
 
         /// <summary>
+        /// Stops hosting all ASP.NET applications in the simulated server.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The test server can only be accessed from the default domain.</exception>
+        public static async Task StopAll()
+        {
+            throwIfNotDefaultAppDomain();
+
+            foreach (var app in Applications.Values.ToArray())
+            {
+                if (!Applications.TryRemove(app.Domain, out HttpApplicationRequestQueue application) ||
+                    !CloseTasks.TryGetValue(application.Domain, out TaskCompletionSource<object> onCloseTask))
+                {
+                    continue;
+                }
+
+                application.Stop(true);
+
+                ApplicationManager.ShutdownApplication(application.Domain);
+
+                await onCloseTask.Task.ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// Get or sets if the current domain should be treated as the default app domain.
         /// When testing you need to set this to true because tests do not run in the default app domain.
         /// </summary>
         public static bool IsDefaultAppDomain { get; set; } = AppDomain.CurrentDomain.IsDefaultAppDomain();
+
+        /// <summary>
+        /// Sets the list of auto loaded assemblies that have the <see cref="AutoLoadIntoAntsAttribute"/> attribute.
+        /// </summary>
+        public static void SetAutoLoadAssemblies(params Assembly[] assemblies)
+        {
+            throwIfNotDefaultAppDomain();
+
+            AutoLoadAssemblies = new Lazy<Tuple<Assembly, AutoLoadIntoAntsAttribute>[]>(() => getAutoLoadAssemblies(assemblies));
+            if (AutoLoadAssemblies.Value == null)
+            {
+                throw new InvalidDataException("Unable to set the auto load assemblies.");
+            }
+        }
     }
 }

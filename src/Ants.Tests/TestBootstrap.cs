@@ -70,16 +70,16 @@ namespace Ants.Tests
 
         public class DefaultDomainWorker : MarshalByRefObject
         {
-            public static bool AfterApplicationStartsCalled { get; private set; }
+            public static TaskCompletionSource<bool> AfterApplicationStartsCalled { get; set; } = new TaskCompletionSource<bool>();
             public void AfterApplicationStartsCallback()
             {
-                AfterApplicationStartsCalled = true;
+                AfterApplicationStartsCalled.TrySetResult(true);
             }
 
-            public static bool BeforeApplicationStartsCalled { get; private set; }
+            public static TaskCompletionSource<bool> BeforeApplicationStartsCalled { get; } = new TaskCompletionSource<bool>();
             public void BeforeApplicationStartsCallback()
             {
-                BeforeApplicationStartsCalled = true;
+                BeforeApplicationStartsCalled.TrySetResult(true);
             }
         }
         public class TestAppDomainWorkerWithDefaultWorker : AppDomainWorker<DefaultDomainWorker>
@@ -99,8 +99,8 @@ namespace Ants.Tests
         {
             TestHelper.EnsureNothingIsRunning();
 
-            Assert.IsFalse(DefaultDomainWorker.AfterApplicationStartsCalled);
-            Assert.IsFalse(DefaultDomainWorker.BeforeApplicationStartsCalled);
+            Assert.IsFalse(DefaultDomainWorker.AfterApplicationStartsCalled.Task.IsCompleted);
+            Assert.IsFalse(DefaultDomainWorker.BeforeApplicationStartsCalled.Task.IsCompleted);
 
             AspNetTestServer.Start<Global>(new StartApplicationArgs<TestAppDomainWorkerWithDefaultWorker>
             {
@@ -109,8 +109,13 @@ namespace Ants.Tests
 
             TestHelper.EnsureServerStarted();
 
-            Assert.IsTrue(DefaultDomainWorker.AfterApplicationStartsCalled);
-            Assert.IsTrue(DefaultDomainWorker.BeforeApplicationStartsCalled);
+            await Task.WhenAny(Task.Delay(TimeSpan.FromMinutes(5)), Task.WhenAll(
+                DefaultDomainWorker.AfterApplicationStartsCalled.Task, 
+                DefaultDomainWorker.BeforeApplicationStartsCalled.Task))
+                .ConfigureAwait(false);
+
+            Assert.IsTrue(DefaultDomainWorker.AfterApplicationStartsCalled.Task.IsCompleted);
+            Assert.IsTrue(DefaultDomainWorker.BeforeApplicationStartsCalled.Task.IsCompleted);
 
             await AspNetTestServer.Stop<Global>().ConfigureAwait(false);
 

@@ -1,19 +1,31 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Diagnostics;
-using System.IO;
-using System.Text;
 using System.Threading;
 using System.Web;
 using System.Web.Hosting;
+using Ants.AutoLoader;
 
-namespace Ants
+namespace Ants.HttpRequestQueue
 {
     internal class HttpApplicationRequestQueue : MarshalByRefObject, IRegisteredObject
     {
         private bool enabled = true;
-        private int threadCount;
+        private int firstRequest = 1, threadCount;
         private readonly ConcurrentQueue<Message> requests = new ConcurrentQueue<Message>();
+        private void afterFirstRequest()
+        {
+            if (Interlocked.CompareExchange(ref firstRequest, 0, 1) == 0)
+            {
+                return;
+            }
+
+            //execute auto loaded assembly code before the application starts
+            foreach (var helper in Helpers)
+            {
+                helper.AfterFirstRouteLoaded();
+            }
+            StartApplicationArgs.InvokeAfterApplicationStartsOnDomainWorker();
+        }
         private void processRequest()
         {
             if (!requests.TryDequeue(out Message request))
@@ -26,10 +38,11 @@ namespace Ants
                 var workerRequest = new HttpWorkerRequestMessage(request);
                 HttpContext.Current = new HttpContext(workerRequest);
                 HttpRuntime.ProcessRequest(workerRequest);
+                afterFirstRequest();
             }
             catch (Exception error)
             {
-                request.EndOfRequestWithError(error.Message, error.StackTrace, error.GetType().FullName);
+                request.EndOfRequestWithError(error.Message, error.StackTrace, error.GetType().AssemblyQualifiedName);
             }
         }
         private void processRequests(object state)
@@ -58,7 +71,9 @@ namespace Ants
 #endif
 
         public ApplicationManager ApplicationManager { get; set; }
+        public AutoLoadAssemblyHelper[] Helpers { get; set; }
         public DefaultDomainWorker DefaultDomainWorker { get; set; }
+        public StartApplicationArgs StartApplicationArgs { get; set; }
         public Type AppType { get; set; }
         public int MaxThreads { get; set; }
         public string Domain { get; set; }
@@ -91,23 +106,8 @@ namespace Ants
 
             AspNetTestServer.ApplicationManager = ApplicationManager;
             AspNetTestServer.DefaultDomainWorker = DefaultDomainWorker;
-        }
-        public void Start(string firstRouteToLoad)
-        {
-            using (var stream = new MemoryStream())
-            using (var output = new StreamWriter(stream))
-            {
-                var request = new SimpleWorkerRequest(firstRouteToLoad, null, output);
-                HttpContext.Current = new HttpContext(request);
-                HttpRuntime.ProcessRequest(request);
-#if DEBUG
-                output.Flush();
-                stream.Position = 0;
-                var response = Encoding.UTF8.GetString(stream.ToArray());
 
-                Debug.WriteLine(response);
-#endif
-            }
+            HttpModuleHelper.ReplaceOwinHttpModule();
         }
         public void Stop(bool immediate)
         {
