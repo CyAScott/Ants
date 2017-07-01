@@ -28,6 +28,8 @@ namespace Ants.HttpRequestQueue
         }
         public void DomainClosed(string domain)
         {
+            // ReSharper disable once UnusedVariable
+            AspNetTestServer.Applications.TryRemove(domain, out HttpApplicationRequestQueue queue);
             if (AspNetTestServer.CloseTasks.TryRemove(domain, out TaskCompletionSource<object> onCloseTask))
             {
                 onCloseTask.TrySetResult(null);
