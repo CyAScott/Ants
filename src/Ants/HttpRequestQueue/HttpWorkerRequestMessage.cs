@@ -66,6 +66,7 @@ namespace Ants.HttpRequestQueue
                 offset += parent.RequestStream.Read(preLoad, offset, (int)length.Value - offset);
             }
         }
+        //byte[] GetQueryStringRawBytes()
 
         public Dictionary<string, string[]> ResponseHeaders => Message.ResponseHeadersAsTuples().ToDictionary(pair => pair.Item1, pair => pair.Item2, StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, string> RequestHeaders { get; }
@@ -81,7 +82,8 @@ namespace Ants.HttpRequestQueue
         }
         public override byte[] GetQueryStringRawBytes()
         {
-            return string.IsNullOrEmpty(Url.Query) ? new byte[0] : Encoding.UTF8.GetBytes(Url.Query);
+            // ReSharper disable once AssignNullToNotNullAttribute
+            return Encoding.UTF8.GetBytes(GetQueryString());
         }
         public override int GetLocalPort()
         {
@@ -126,7 +128,7 @@ namespace Ants.HttpRequestQueue
         }
         public override string GetQueryString()
         {
-            return Url.Query;
+            return string.IsNullOrEmpty(Url.Query) ? "" : Url.Query.Substring(1);
         }
         public override string GetRawUrl()
         {
