@@ -1,7 +1,7 @@
 ﻿using System;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Ants.HttpRequestQueue;
@@ -11,17 +11,8 @@ namespace Ants
     /// <summary>
     /// A HTTP handler that converts <see cref="HttpRequestMessage"/>s to <see cref="HttpResponseMessage"/>s by processing the messages via Ants.
     /// </summary>
-    public class HttpClientTestServerHandler : HttpClientHandler
+    public class HttpClientTestServerHandler : HttpMessageHandler
     {
-        //// ReSharper disable once InconsistentNaming
-        //private readonly Action CheckDisposed;
-        //// ReSharper disable once InconsistentNaming
-        //private readonly Action SetOperationStarted;
-        //// ReSharper disable once InconsistentNaming
-        //private readonly Action<HttpResponseMessage> ProcessResponse;
-        //// ReSharper disable once InconsistentNaming
-        //private readonly Func<HttpRequestMessage, Task> ConfigureRequest;
-
         private static HttpResponseMessage createBadGatewayResponseMessage(bool serverExists)
         {
             return new HttpResponseMessage(HttpStatusCode.BadGateway)
@@ -31,7 +22,8 @@ namespace Ants
         }
 
         /// <inheritdoc/>
-        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
+            CancellationToken cancellationToken)
         {
             var domain = request.RequestUri.Host;
             if (!request.RequestUri.IsDefaultPort)
@@ -39,48 +31,65 @@ namespace Ants
                 domain += $":{request.RequestUri.Port}";
             }
 
-            //await ConfigureRequest(request).ConfigureAwait(false);
+            var cookiesEnabled = CookiesEnabled;
+            if (cookiesEnabled)
+            {
+                var cookieHeader = Cookies.GetCookieHeader(request.RequestUri);
+                if (!string.IsNullOrEmpty(cookieHeader))
+                {
+                    request.Headers.Add("Cookie", cookieHeader.Split(';').Select(item => item.Trim()));
+                }
+            }
 
-            var message = new Message(request, request.Content == null ? null : await request.Content.ReadAsStreamAsync().ConfigureAwait(false));
+            var message = new Message(request,
+                request.Content == null ? null : await request.Content.ReadAsStreamAsync().ConfigureAwait(false));
 
-            //CheckDisposed();
-            //SetOperationStarted();
-
-            HttpResponseMessage response;
             switch (AspNetTestServer.DefaultDomainWorker.Enqueue(domain, message))
             {
                 case EnqueueResults.ApplicationNotFound:
-                    response = createBadGatewayResponseMessage(serverExists: false);
-                    break;
+                    return createBadGatewayResponseMessage(serverExists: false);
                 case EnqueueResults.ApplicationNotInitialize:
-                    response = createBadGatewayResponseMessage(serverExists: true);
-                    break;
+                    return createBadGatewayResponseMessage(serverExists: true);
                 case EnqueueResults.Enqueued:
-                    response = await message.Task.Task.ConfigureAwait(false);
                     break;
                 default:
                     throw new NotSupportedException();
             }
 
-            //ProcessResponse(response);
+            var response = await message.Task.Task.ConfigureAwait(false);
 
-            return response;
+            if (!cookiesEnabled)
+            {
+                return response.Item1;
+            }
+
+            lock (Cookies)
+            {
+                foreach (var cookie in response.Item2)
+                {
+                    Cookies.SetCookies(request.RequestUri, cookie);
+                }
+            }
+
+            return response.Item1;
         }
 
         /// <summary>
-        /// Creates a HTTP handler that converts <see cref="HttpRequestMessage"/>s to <see cref="HttpResponseMessage"/>s by processing the messages via Ants.
+        /// The cookie collection.
         /// </summary>
-        public HttpClientTestServerHandler()
+        public CookieContainer Cookies { get; private set; } = new CookieContainer();
+
+        /// <summary>
+        /// Enables/disables the cookies. Cookies are enabled by default.
+        /// </summary>
+        public bool CookiesEnabled { get; set; } = true;
+
+        /// <summary>
+        /// Removes all stored cookies.
+        /// </summary>
+        public void ClearCookies()
         {
-            //CheckDisposed = (Action)typeof(HttpClientHandler)
-            //    .GetMethod(nameof(CheckDisposed), BindingFlags.Instance | BindingFlags.NonPublic)
-            //    .CreateDelegate(typeof(Action), this);
-            //SetOperationStarted = (Action)typeof(HttpClientHandler)
-            //    .GetMethod(nameof(SetOperationStarted), BindingFlags.Instance | BindingFlags.NonPublic)
-            //    .CreateDelegate(typeof(Action), this);
-            
-            CookieContainer = new CookieContainer();
-            UseCookies = true;
+            Cookies = new CookieContainer();
         }
     }
 }

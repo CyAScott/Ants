@@ -116,10 +116,11 @@ namespace Ants.HttpRequestQueue
             request = httpRequestMessage;
         }
         public ConcurrentDictionary<string, string[]> ResponseHeaders { get; } = new ConcurrentDictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+        public ConcurrentQueue<string> Cookies = new ConcurrentQueue<string>();
         public HttpStatusCode HttpStatusCode { get; set; }
         public MemoryStream ResponseStream { get; } = new MemoryStream();
         public Stream RequestStream { get; }
-        public TaskCompletionSource<HttpResponseMessage> Task { get; } = new TaskCompletionSource<HttpResponseMessage>();
+        public TaskCompletionSource<Tuple<HttpResponseMessage, string[]>> Task { get; } = new TaskCompletionSource<Tuple<HttpResponseMessage, string[]>>();
         public Tuple<string, string>[] RequestHeadersAsTuples()
         {
             return request.Headers
@@ -161,7 +162,7 @@ namespace Ants.HttpRequestQueue
                 returnValue.Headers.Add(pair.Key, pair.Value);
             }
 
-            if (!Task.TrySetResult(returnValue))
+            if (!Task.TrySetResult(new Tuple<HttpResponseMessage, string[]>(returnValue, Cookies.ToArray())))
             {
                 returnValue.Dispose();
             }
@@ -180,11 +181,25 @@ namespace Ants.HttpRequestQueue
         }
         public void SetResponseHeader(string name, string value)
         {
-            ResponseHeaders[name] = value.Split(';').Select(item => item.Trim()).ToArray();
+            if (string.Equals(name, "Set-Cookie", StringComparison.OrdinalIgnoreCase))
+            {
+                Cookies.Enqueue(value);
+            }
+            else
+            {
+                ResponseHeaders[name] = value.Split(';').Select(item => item.Trim()).ToArray();
+            }
         }
         public void TryAddResponseHeader(string name, string value)
         {
-            ResponseHeaders.TryAdd(name, value.Split(';').Select(item => item.Trim()).ToArray());
+            if (string.Equals(name, "Set-Cookie", StringComparison.OrdinalIgnoreCase))
+            {
+                Cookies.Enqueue(value);
+            }
+            else
+            {
+                ResponseHeaders.TryAdd(name, value.Split(';').Select(item => item.Trim()).ToArray());
+            }
         }
     }
 }

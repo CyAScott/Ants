@@ -59,8 +59,10 @@
     <Compile Include="ExampleTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TestBootstrap.cs" />
+    <Compile Include="TestCookies.cs" />
     <Compile Include="TestHelper.cs" />
     <Compile Include="TestControllers.cs" />
+    <Compile Include="TestQueryString.cs" />
     <Compile Include="TestStaticsContent.cs" />
   </ItemGroup>
   <ItemGroup>

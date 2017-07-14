@@ -208,7 +208,9 @@
     <Compile Include="Constraints\GuidConstraint.cs" />
     <Compile Include="Controllers\TestApiController.cs" />
     <Compile Include="Controllers\TestConfigsController.cs" />
+    <Compile Include="Controllers\TestCookiesController.cs" />
     <Compile Include="Controllers\TestMvcController.cs" />
+    <Compile Include="Controllers\TestQueryStringController.cs" />
     <Compile Include="Filters\IdFilter.cs" />
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
