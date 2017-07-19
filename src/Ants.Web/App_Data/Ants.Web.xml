@@ -523,6 +523,16 @@
             </summary>
             <returns></returns>
         </member>
+        <member name="T:Ants.Web.Controllers.TestCookiesController">
+            <summary>
+            Example controller for testing cookies.
+            </summary>
+        </member>
+        <member name="M:Ants.Web.Controllers.TestCookiesController.TestCookies(System.String[])">
+            <summary>
+            A simple get by ID with a query string test.
+            </summary>
+        </member>
         <member name="T:Ants.Web.Controllers.TestMvcController">
             <summary>
             Example MVC controller.
@@ -536,6 +546,16 @@
         <member name="M:Ants.Web.Controllers.TestMvcController.Index(Ants.Web.Models.MvcRequest)">
             <summary>
             A simple MVC post.
+            </summary>
+        </member>
+        <member name="T:Ants.Web.Controllers.TestQueryStringController">
+            <summary>
+            Example controller for testing query string.
+            </summary>
+        </member>
+        <member name="M:Ants.Web.Controllers.TestQueryStringController.TestQueryString(System.String)">
+            <summary>
+            A simple get by ID with a query string test.
             </summary>
         </member>
     </members>

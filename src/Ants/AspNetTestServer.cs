@@ -263,8 +263,9 @@ namespace Ants
 
         /// <summary>
         /// Gets the <see cref="HttpMessageHandler"/> used by <see cref="HttpClient"/>s to send http requests to the simulated server.
+        /// This handler keeps track of cookies by default.
         /// </summary>
-        public static HttpMessageHandler HttpMessageHandler { get; } = new HttpClientTestServerHandler();
+        public static HttpClientTestServerHandler HttpMessageHandler { get; } = new HttpClientTestServerHandler();
 
         /// <summary>
         /// Stops hosting an ASP.NET application in the simulated server.

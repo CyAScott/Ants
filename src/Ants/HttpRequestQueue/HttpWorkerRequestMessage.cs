@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -81,7 +80,8 @@ namespace Ants.HttpRequestQueue
         }
         public override byte[] GetQueryStringRawBytes()
         {
-            return string.IsNullOrEmpty(Url.Query) ? new byte[0] : Encoding.UTF8.GetBytes(Url.Query);
+            // ReSharper disable once AssignNullToNotNullAttribute
+            return Encoding.UTF8.GetBytes(GetQueryString());
         }
         public override int GetLocalPort()
         {
@@ -126,7 +126,7 @@ namespace Ants.HttpRequestQueue
         }
         public override string GetQueryString()
         {
-            return Url.Query;
+            return string.IsNullOrEmpty(Url.Query) ? "" : Url.Query.Substring(1);
         }
         public override string GetRawUrl()
         {

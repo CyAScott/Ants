@@ -116,10 +116,11 @@ namespace Ants.HttpRequestQueue
             request = httpRequestMessage;
         }
         public ConcurrentDictionary<string, string[]> ResponseHeaders { get; } = new ConcurrentDictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+        public ConcurrentQueue<string> Cookies = new ConcurrentQueue<string>();
         public HttpStatusCode HttpStatusCode { get; set; }
         public MemoryStream ResponseStream { get; } = new MemoryStream();
         public Stream RequestStream { get; }
-        public TaskCompletionSource<HttpResponseMessage> Task { get; } = new TaskCompletionSource<HttpResponseMessage>();
+        public TaskCompletionSource<Tuple<HttpResponseMessage, string[]>> Task { get; } = new TaskCompletionSource<Tuple<HttpResponseMessage, string[]>>();
         public Tuple<string, string>[] RequestHeadersAsTuples()
         {
             return request.Headers
@@ -135,10 +136,20 @@ namespace Ants.HttpRequestQueue
                 .ToArray();
         }
         public Uri Url => request.RequestUri;
+        public int ResponseHeaderCount => ResponseHeaders.Count;
         public long? ContentLength => request.Content?.Headers?.ContentLength;
+        public string GetResponseHeader(string name)
+        {
+            return ResponseHeaders.TryGetValue(name, out string[] values) ? string.Join("; ", values) : null;
+        }
         public string HttpMethod => request.Method.Method;
         public string HttpVersion => $"HTTP/{request.Version}";
         public string ReasonPhrase { get; set; }
+        public string[] GetResponseHeaderValues(string name)
+        {
+            return ResponseHeaders.TryGetValue(name, out string[] values) ? values : null;
+        }
+        public string[] ResponseKeys => ResponseHeaders.Keys.ToArray();
         public void ClearHeaders()
         {
             ResponseHeaders.Clear();
@@ -161,7 +172,7 @@ namespace Ants.HttpRequestQueue
                 returnValue.Headers.Add(pair.Key, pair.Value);
             }
 
-            if (!Task.TrySetResult(returnValue))
+            if (!Task.TrySetResult(new Tuple<HttpResponseMessage, string[]>(returnValue, Cookies.ToArray())))
             {
                 returnValue.Dispose();
             }
@@ -178,13 +189,43 @@ namespace Ants.HttpRequestQueue
         {
             Task.TrySetException(new InvalidProgramException("The ASP.NET test server shut down before this request could process."));
         }
+        public void RemoveResponseHeader(string name)
+        {
+            // ReSharper disable once UnusedVariable
+            ResponseHeaders.TryRemove(name, out string[] values);
+        }
         public void SetResponseHeader(string name, string value)
         {
-            ResponseHeaders[name] = value.Split(';').Select(item => item.Trim()).ToArray();
+            if (string.Equals(name, "Set-Cookie", StringComparison.OrdinalIgnoreCase))
+            {
+                Cookies.Enqueue(value);
+            }
+            else
+            {
+                ResponseHeaders[name] = value.Split(';').Select(item => item.Trim()).ToArray();
+            }
+        }
+        public void SetResponseHeader(string name, string[] values)
+        {
+            if (string.Equals(name, "Set-Cookie", StringComparison.OrdinalIgnoreCase))
+            {
+                Cookies.Enqueue(string.Join("; ", values));
+            }
+            else
+            {
+                ResponseHeaders[name] = values;
+            }
         }
         public void TryAddResponseHeader(string name, string value)
         {
-            ResponseHeaders.TryAdd(name, value.Split(';').Select(item => item.Trim()).ToArray());
+            if (string.Equals(name, "Set-Cookie", StringComparison.OrdinalIgnoreCase))
+            {
+                Cookies.Enqueue(value);
+            }
+            else
+            {
+                ResponseHeaders.TryAdd(name, value.Split(';').Select(item => item.Trim()).ToArray());
+            }
         }
     }
 }

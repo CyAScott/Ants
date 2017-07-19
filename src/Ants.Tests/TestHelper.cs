@@ -24,6 +24,7 @@ namespace Ants.Tests
         public static void EnsureNothingIsRunning()
         {
             AspNetTestServer.IsDefaultAppDomain = true;
+            AspNetTestServer.HttpMessageHandler.ClearCookies();
 
 #if DEBUG
             Assert.IsFalse(Testing.Variables.ApplicationAuthenticateRequestCalled);

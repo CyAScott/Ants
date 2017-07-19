@@ -16,22 +16,12 @@ namespace Ants.Owin
         public AntsHttpResponseWrapper(AntsHttpContextWrapper parent)
             : base(parent.Context.Response)
         {
+            Headers = new ProxyHeaders(parent.HttpWorkerRequestMessage);
             this.parent = parent;
         }
 
         /// <inheritdoc />
-        public override NameValueCollection Headers
-        {
-            get
-            {
-                var headers = new NameValueCollection();
-                foreach (var header in parent.HttpWorkerRequestMessage.ResponseHeaders)
-                {
-                    headers[header.Key] = string.Join("; ", header.Value);
-                }
-                return headers;
-            }
-        }
+        public override NameValueCollection Headers { get; }
 
         /// <inheritdoc />
         public override void AppendHeader(string name, string value)
