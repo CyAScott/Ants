@@ -15,12 +15,7 @@ namespace Ants.Owin
         public AntsHttpRequestWrapper(AntsHttpContextWrapper parent)
             : base(parent.Context.Request)
         {
-            var headers = Headers = new NameValueCollection();
-            foreach (var header in parent.HttpWorkerRequestMessage.RequestHeaders)
-            {
-                headers[header.Key] = header.Value;
-            }
-
+            Headers = parent.Context.Request.Headers;
             InputStream = parent.HttpWorkerRequestMessage.Message.RequestStream;
         }
 

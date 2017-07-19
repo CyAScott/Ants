@@ -11,7 +11,50 @@ namespace Ants.Owin
         where THttpModule : IHttpModule, new()
     {
         private THttpModule owinModule;
-        private static IAsyncResult OnEventForRequestStart(object sender, EventArgs eventArgs, AsyncCallback cb, object extraData)
+        private static Action<HttpApplication, BeginEventHandler, EndEventHandler, object> getAddOnMapRequestHandlerAsync()
+        {
+            //the public method blocks this call if not in integrated mode
+            //using reflection to bypass that validation check
+            //this event wiring is still experimental and does not work correctly at the moment
+
+            var asyncEventsPropertyInfo = typeof(HttpApplication)
+                .GetProperty("AsyncEvents", BindingFlags.NonPublic | BindingFlags.Instance);
+            if (asyncEventsPropertyInfo == null)
+            {
+                throw new InvalidOperationException("Unable to find the AsyncEvents property.");
+            }
+
+            var eventMapRequestHandler = typeof(HttpApplication)
+                .GetField("EventMapRequestHandler", BindingFlags.NonPublic | BindingFlags.Static)
+                ?.GetValue(null);
+            if (eventMapRequestHandler == null)
+            {
+                throw new InvalidOperationException("Unable to find the EventMapRequestHandler field.");
+            }
+
+            var addHandler = asyncEventsPropertyInfo.PropertyType
+                .GetMethod("AddHandler", BindingFlags.NonPublic | BindingFlags.Instance);
+            if (addHandler == null)
+            {
+                throw new InvalidOperationException("Unable to find the AddHandler method.");
+            }
+
+            return (app, beginHandler, endHandler, state) =>
+            {
+                var asyncEvents = asyncEventsPropertyInfo.GetValue(app);
+                addHandler.Invoke(asyncEvents, new[]
+                {
+                    eventMapRequestHandler,
+                    beginHandler,
+                    endHandler,
+                    state,
+                    RequestNotification.MapRequestHandler,
+                    false,
+                    app
+                });
+            };
+        }
+        private static IAsyncResult OnEventForRequest(object sender, EventArgs eventArgs, AsyncCallback cb, object extraData)
         {
             lock (locker)
             {
@@ -27,9 +70,9 @@ namespace Ants.Owin
                 return beginEventDelegate(sender, eventArgs, cb, null);
             }
         }
-
         private static int initializeStarted;
         private static object blueprint, integratedPipelineContext;
+        private static readonly Lazy<Action<HttpApplication, BeginEventHandler, EndEventHandler, object>> addOnMapRequestHandlerAsync = new Lazy<Action<HttpApplication, BeginEventHandler, EndEventHandler, object>>(getAddOnMapRequestHandlerAsync);
         private static readonly object locker = new object();
 
         public void Init(HttpApplication application)
@@ -40,11 +83,6 @@ namespace Ants.Owin
 
                 if (Interlocked.CompareExchange(ref initializeStarted, 1, 0) == 0)
                 {
-                    //todo: fix issue with processing requests with this value set to true
-                    //typeof(HttpRuntime)
-                    //    .GetField("_useIntegratedPipeline", BindingFlags.NonPublic | BindingFlags.Static)
-                    //    ?.SetValue(null, true);
-
                     owinModule = new THttpModule();
 
                     blueprint = typeof(THttpModule)
@@ -115,45 +153,44 @@ namespace Ants.Owin
                 switch ((string)name.GetValue(stage))
                 {
                     case "Authenticate":
-                        application.AddOnAuthenticateRequestAsync(OnEventForRequestStart, endEventDelegate, beginEventDelegate);
+                        application.AddOnAuthenticateRequestAsync(OnEventForRequest, endEventDelegate, beginEventDelegate);
                         break;
                     case "PostAuthenticate":
-                        application.AddOnPostAuthenticateRequestAsync(OnEventForRequestStart, endEventDelegate, beginEventDelegate);
+                        application.AddOnPostAuthenticateRequestAsync(OnEventForRequest, endEventDelegate, beginEventDelegate);
                         break;
                     case "Authorize":
-                        application.AddOnAuthorizeRequestAsync(OnEventForRequestStart, endEventDelegate, beginEventDelegate);
+                        application.AddOnAuthorizeRequestAsync(OnEventForRequest, endEventDelegate, beginEventDelegate);
                         break;
                     case "PostAuthorize":
-                        application.AddOnPostAuthorizeRequestAsync(OnEventForRequestStart, endEventDelegate, beginEventDelegate);
+                        application.AddOnPostAuthorizeRequestAsync(OnEventForRequest, endEventDelegate, beginEventDelegate);
                         break;
                     case "ResolveCache":
-                        application.AddOnResolveRequestCacheAsync(OnEventForRequestStart, endEventDelegate, beginEventDelegate);
+                        application.AddOnResolveRequestCacheAsync(OnEventForRequest, endEventDelegate, beginEventDelegate);
                         break;
                     case "PostResolveCache":
-                        application.AddOnPostResolveRequestCacheAsync(OnEventForRequestStart, endEventDelegate, beginEventDelegate);
+                        application.AddOnPostResolveRequestCacheAsync(OnEventForRequest, endEventDelegate, beginEventDelegate);
                         break;
-                    //todo: _useIntegratedPipeline needs to be set to true for this to work
-                    //case "MapHandler":
-                    //    application.AddOnMapRequestHandlerAsync(OnEventForRequestStart, endEventDelegate, beginEventDelegate);
-                    //    break;
+                    case "MapHandler":
+                        addOnMapRequestHandlerAsync.Value(application, OnEventForRequest, endEventDelegate, beginEventDelegate);
+                        break;
                     case "PostMapHandler":
-                        application.AddOnPostMapRequestHandlerAsync(OnEventForRequestStart, endEventDelegate, beginEventDelegate);
+                        application.AddOnPostMapRequestHandlerAsync(OnEventForRequest, endEventDelegate, beginEventDelegate);
                         break;
                     case "AcquireState":
-                        application.AddOnAcquireRequestStateAsync(OnEventForRequestStart, endEventDelegate, beginEventDelegate);
+                        application.AddOnAcquireRequestStateAsync(OnEventForRequest, endEventDelegate, beginEventDelegate);
                         break;
                     case "PostAcquireState":
-                        application.AddOnPostAcquireRequestStateAsync(OnEventForRequestStart, endEventDelegate, beginEventDelegate);
+                        application.AddOnPostAcquireRequestStateAsync(OnEventForRequest, endEventDelegate, beginEventDelegate);
                         break;
                     case "PreHandlerExecute":
-                        application.AddOnPreRequestHandlerExecuteAsync(OnEventForRequestStart, endEventDelegate, beginEventDelegate);
+                        application.AddOnPreRequestHandlerExecuteAsync(OnEventForRequest, endEventDelegate, beginEventDelegate);
                         break;
                     default:
                         throw new NotSupportedException();
                 }
             }
 
-            application.AddOnEndRequestAsync(OnEventForRequestStart, endFinalWork, beginFinalWork);
+            application.AddOnEndRequestAsync(OnEventForRequest, endFinalWork, beginFinalWork);
         }
 
         public void Dispose()

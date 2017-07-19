@@ -136,10 +136,20 @@ namespace Ants.HttpRequestQueue
                 .ToArray();
         }
         public Uri Url => request.RequestUri;
+        public int ResponseHeaderCount => ResponseHeaders.Count;
         public long? ContentLength => request.Content?.Headers?.ContentLength;
+        public string GetResponseHeader(string name)
+        {
+            return ResponseHeaders.TryGetValue(name, out string[] values) ? string.Join("; ", values) : null;
+        }
         public string HttpMethod => request.Method.Method;
         public string HttpVersion => $"HTTP/{request.Version}";
         public string ReasonPhrase { get; set; }
+        public string[] GetResponseHeaderValues(string name)
+        {
+            return ResponseHeaders.TryGetValue(name, out string[] values) ? values : null;
+        }
+        public string[] ResponseKeys => ResponseHeaders.Keys.ToArray();
         public void ClearHeaders()
         {
             ResponseHeaders.Clear();
@@ -179,6 +189,11 @@ namespace Ants.HttpRequestQueue
         {
             Task.TrySetException(new InvalidProgramException("The ASP.NET test server shut down before this request could process."));
         }
+        public void RemoveResponseHeader(string name)
+        {
+            // ReSharper disable once UnusedVariable
+            ResponseHeaders.TryRemove(name, out string[] values);
+        }
         public void SetResponseHeader(string name, string value)
         {
             if (string.Equals(name, "Set-Cookie", StringComparison.OrdinalIgnoreCase))
@@ -188,6 +203,17 @@ namespace Ants.HttpRequestQueue
             else
             {
                 ResponseHeaders[name] = value.Split(';').Select(item => item.Trim()).ToArray();
+            }
+        }
+        public void SetResponseHeader(string name, string[] values)
+        {
+            if (string.Equals(name, "Set-Cookie", StringComparison.OrdinalIgnoreCase))
+            {
+                Cookies.Enqueue(string.Join("; ", values));
+            }
+            else
+            {
+                ResponseHeaders[name] = values;
             }
         }
         public void TryAddResponseHeader(string name, string value)

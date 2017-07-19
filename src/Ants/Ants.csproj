@@ -57,6 +57,7 @@
     <Compile Include="HttpRequestQueue\Message.cs" />
     <Compile Include="MessageHandledException.cs" />
     <Compile Include="Owin\OwinHttpModuleWrapper.cs" />
+    <Compile Include="Owin\ProxyHeaders.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="StartApplicationArgs.cs" />
     <Compile Include="Testing.cs" />

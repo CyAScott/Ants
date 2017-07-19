@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -66,7 +65,6 @@ namespace Ants.HttpRequestQueue
                 offset += parent.RequestStream.Read(preLoad, offset, (int)length.Value - offset);
             }
         }
-        //byte[] GetQueryStringRawBytes()
 
         public Dictionary<string, string[]> ResponseHeaders => Message.ResponseHeadersAsTuples().ToDictionary(pair => pair.Item1, pair => pair.Item2, StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, string> RequestHeaders { get; }
