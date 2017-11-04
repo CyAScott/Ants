@@ -110,7 +110,7 @@ namespace Ants.Tests
             TestHelper.EnsureServerStarted();
 
             await Task.WhenAny(Task.Delay(TimeSpan.FromMinutes(5)), Task.WhenAll(
-                DefaultDomainWorker.AfterApplicationStartsCalled.Task, 
+                DefaultDomainWorker.AfterApplicationStartsCalled.Task,
                 DefaultDomainWorker.BeforeApplicationStartsCalled.Task))
                 .ConfigureAwait(false);
 

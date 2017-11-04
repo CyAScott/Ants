@@ -118,7 +118,7 @@ namespace Ants.Tests
                 {
                     Assert.IsNotNull(result);
                     Assert.IsNotNull(result.Content);
-                    
+
                     result.EnsureSuccessStatusCode();
 
                     Debug.WriteLine(result);
@@ -126,7 +126,7 @@ namespace Ants.Tests
                     var html = await result.Content.ReadAsStringAsync();
                     Assert.IsFalse(string.IsNullOrEmpty(html));
                     Debug.WriteLine(html);
-                    
+
                     if (body != null)
                     {
                         var htmlDoc = new HtmlDocument();
