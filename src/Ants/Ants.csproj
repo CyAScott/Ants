@@ -64,6 +64,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Ants.nuspec" />
+    <Compile Include="AspNetTestServer.Internal.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

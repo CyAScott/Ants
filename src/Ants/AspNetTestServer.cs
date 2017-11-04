@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -17,62 +16,25 @@ namespace Ants
     /// <summary>
     /// A static class for managing ASP.NET applications running on a simulated server.
     /// </summary>
-    public static class AspNetTestServer
+    public static partial class AspNetTestServer
     {
-        internal static DefaultDomainWorker DefaultDomainWorker { get; set; }
-        internal static HttpApplicationRequestQueue GetApplication<THttpApplication>()
-            where THttpApplication : HttpApplication, new()
+        /// <summary>
+        /// Starts hosting an ASP.NET application in a simulated server.
+        /// </summary>
+        /// <exception cref="ApplicationException">Failed to load the App Domain worker.</exception>
+        /// <exception cref="ApplicationException">Failed to load the request queue for processing HTTP requests.</exception>
+        /// <exception cref="ArgumentException">Virtual Directory</exception>
+        /// <exception cref="ArgumentException">Domain</exception>
+        /// <exception cref="DirectoryNotFoundException">Physical Directory</exception>
+        /// <exception cref="IndexOutOfRangeException">Thread Count</exception>
+        /// <exception cref="InvalidOperationException">The test server can only be accessed from the default domain.</exception>
+        /// <exception cref="InvalidOperationException">An ASP.NET application is already running.</exception>
+        /// <param name="assembly">The assembly for the ASP.NET application.</param>
+        /// <param name="args">Optional. The arguments for starting an ASP.NET application.</param>
+        /// <returns>The <see cref="AppDomain"/> the ASP.NET application runs in.</returns>
+        public static AppDomain Start(Assembly assembly, StartApplicationArgs args = null)
         {
-            return Applications.Values.FirstOrDefault(queue => queue.AppType == typeof(THttpApplication));
-        }
-        internal static Lazy<Tuple<Assembly, AutoLoadIntoAntsAttribute>[]> AutoLoadAssemblies = new Lazy<Tuple<Assembly, AutoLoadIntoAntsAttribute>[]>(() => getAutoLoadAssemblies());
-        internal static readonly ConcurrentDictionary<string, HttpApplicationRequestQueue> Applications = new ConcurrentDictionary<string, HttpApplicationRequestQueue>(StringComparer.OrdinalIgnoreCase);
-        internal static readonly ConcurrentDictionary<string, TaskCompletionSource<object>> CloseTasks = new ConcurrentDictionary<string, TaskCompletionSource<object>>(StringComparer.OrdinalIgnoreCase);
-
-        private static Tuple<Assembly, AutoLoadIntoAntsAttribute>[] getAutoLoadAssemblies(params Assembly[] assemblies)
-        {
-            return assemblies
-            .Concat(AppDomain
-                .CurrentDomain
-                .GetAssemblies())
-            .Concat(new []
-                {
-                    Assembly.GetCallingAssembly(),
-                    Assembly.GetEntryAssembly(),
-                    Assembly.GetExecutingAssembly()
-                })
-            .Where(assembly => assembly != null)
-            .SelectMany(assembly => assembly
-                .GetReferencedAssemblies()
-                .Select(assemblyName => assemblyName.FullName)
-                .Concat(new []{ assembly.FullName }))
-            .Distinct()
-            .OrderBy(assemblyName => assemblyName)
-            .Select(assemblyName =>
-            {
-                try
-                {
-                    var assembly = Assembly.Load(assemblyName.ToString());
-                    var attribute = assembly?.GetCustomAttribute<AutoLoadIntoAntsAttribute>();
-                    return attribute == null ? null : new Tuple<Assembly, AutoLoadIntoAntsAttribute>(assembly, attribute);
-                }
-                catch
-                {
-                    return null;
-                }
-            })
-            .Where(tuple => tuple != null)
-            .ToArray();
-        }
-        private static void throwIfNotDefaultAppDomain()
-        {
-            if (!IsDefaultAppDomain)
-            {
-                throw new InvalidOperationException("The test server can only be accessed from the default domain.");
-            }
-
-            ApplicationManager = ApplicationManager ?? ApplicationManager.GetApplicationManager();
-            DefaultDomainWorker = DefaultDomainWorker ?? new DefaultDomainWorker();
+            return Start(assembly.GetGuid(), args);
         }
 
         /// <summary>
@@ -86,13 +48,17 @@ namespace Ants
         /// <exception cref="IndexOutOfRangeException">Thread Count</exception>
         /// <exception cref="InvalidOperationException">The test server can only be accessed from the default domain.</exception>
         /// <exception cref="InvalidOperationException">An ASP.NET application is already running.</exception>
-        /// <typeparam name="THttpApplication">The type for the ASP.NET application.</typeparam>
+        /// <param name="id">The ID for the ASP.NET application.</param>
         /// <param name="args">Optional. The arguments for starting an ASP.NET application.</param>
         /// <returns>The <see cref="AppDomain"/> the ASP.NET application runs in.</returns>
-        public static AppDomain Start<THttpApplication>(StartApplicationArgs args = null)
-            where THttpApplication : HttpApplication, new()
+        public static AppDomain Start(Guid id, StartApplicationArgs args = null)
         {
             throwIfNotDefaultAppDomain();
+
+            if (id == Guid.Empty)
+            {
+                throw new ArgumentNullException(nameof(id));
+            }
 
             args = args ?? new StartApplicationArgs();
 
@@ -105,7 +71,7 @@ namespace Ants
                 var testingVariables = Testing.Variables;
 #endif
 
-                args.Sanitize<THttpApplication>();
+                args.Sanitize(id);
 
                 args.ThrowOnValidationError();
 
@@ -125,7 +91,7 @@ namespace Ants
                 //register the assembly for ANTS for the target app domain
                 var applicationRequestQueueType = typeof(HttpApplicationRequestQueue);
                 buildManagerHost.RegisterAssembly(appDomain, applicationRequestQueueType.Assembly);
-                
+
                 //register auto loaded assemblies
                 var autoLoadAssemblyHelpers = new List<AutoLoadAssemblyHelper>();
                 foreach (var tuple in AutoLoadAssemblies.Value.Where(tuple => !tuple.Item2.LoadAfterOtherAssemblies))
@@ -134,7 +100,7 @@ namespace Ants
                     if (tuple.Item2.AutoLoadAssemblyHelper != null &&
                         typeof(AutoLoadAssemblyHelper).IsAssignableFrom(tuple.Item2.AutoLoadAssemblyHelper))
                     {
-                        autoLoadAssemblyHelpers.Add((AutoLoadAssemblyHelper)appDomain.CreateInstanceAndUnwrap(tuple.Item1.FullName, tuple.Item2.AutoLoadAssemblyHelper.FullName));
+                        autoLoadAssemblyHelpers.Add((AutoLoadAssemblyHelper)appDomain.CreateInstanceAndUnwrap(tuple.Item1.FullName, tuple.Item2.AutoLoadAssemblyHelper.FullName ?? ""));
                     }
                 }
 
@@ -155,7 +121,7 @@ namespace Ants
                     if (tuple.Item2.AutoLoadAssemblyHelper != null &&
                         typeof(AutoLoadAssemblyHelper).IsAssignableFrom(tuple.Item2.AutoLoadAssemblyHelper))
                     {
-                        autoLoadAssemblyHelpers.Add((AutoLoadAssemblyHelper)appDomain.CreateInstanceAndUnwrap(tuple.Item1.FullName, tuple.Item2.AutoLoadAssemblyHelper.FullName));
+                        autoLoadAssemblyHelpers.Add((AutoLoadAssemblyHelper)appDomain.CreateInstanceAndUnwrap(tuple.Item1.FullName, tuple.Item2.AutoLoadAssemblyHelper.FullName ?? ""));
                     }
                 }
 
@@ -173,7 +139,7 @@ namespace Ants
 
                 //set all the properties the request queue will need to process http requests
                 applicationRequestQueue.ApplicationManager = ApplicationManager;
-                applicationRequestQueue.AppType = typeof(THttpApplication);
+                applicationRequestQueue.Id = id;
                 applicationRequestQueue.Domain = args.Domain;
                 applicationRequestQueue.Helpers = autoLoadAssemblyHelpers.ToArray();
                 applicationRequestQueue.MaxThreads = args.ThreadCount;
@@ -223,6 +189,26 @@ namespace Ants
         }
 
         /// <summary>
+        /// Starts hosting an ASP.NET application in a simulated server.
+        /// </summary>
+        /// <exception cref="ApplicationException">Failed to load the App Domain worker.</exception>
+        /// <exception cref="ApplicationException">Failed to load the request queue for processing HTTP requests.</exception>
+        /// <exception cref="ArgumentException">Virtual Directory</exception>
+        /// <exception cref="ArgumentException">Domain</exception>
+        /// <exception cref="DirectoryNotFoundException">Physical Directory</exception>
+        /// <exception cref="IndexOutOfRangeException">Thread Count</exception>
+        /// <exception cref="InvalidOperationException">The test server can only be accessed from the default domain.</exception>
+        /// <exception cref="InvalidOperationException">An ASP.NET application is already running.</exception>
+        /// <typeparam name="THttpApplication">The type for the ASP.NET application.</typeparam>
+        /// <param name="args">Optional. The arguments for starting an ASP.NET application.</param>
+        /// <returns>The <see cref="AppDomain"/> the ASP.NET application runs in.</returns>
+        public static AppDomain Start<THttpApplication>(StartApplicationArgs args = null)
+            where THttpApplication : HttpApplication, new()
+        {
+            return Start(typeof(THttpApplication).GUID, args);
+        }
+
+        /// <summary>
         /// Manages ASP.NET application domains for an ASP.NET hosting application.
         /// </summary>
         public static ApplicationManager ApplicationManager { get; internal set; }
@@ -234,7 +220,7 @@ namespace Ants
         public static HttpClient GetHttpClient<THttpApplication>()
             where THttpApplication : HttpApplication, new()
         {
-            var domain = DefaultDomainWorker?.GetDomainFromType(typeof(THttpApplication).AssemblyQualifiedName);
+            var domain = DefaultDomainWorker?.GetDomainFromId(typeof(THttpApplication).GUID);
             if (string.IsNullOrEmpty(domain))
             {
                 throw new ArgumentException("Unable to find the domain for this type.");
@@ -271,13 +257,20 @@ namespace Ants
         /// Stops hosting an ASP.NET application in the simulated server.
         /// </summary>
         /// <exception cref="InvalidOperationException">The test server can only be accessed from the default domain.</exception>
-        /// <typeparam name="THttpApplication">The type for the ASP.NET application.</typeparam>
-        public static Task Stop<THttpApplication>()
-            where THttpApplication : HttpApplication, new()
+        public static Task Stop(Assembly assembly)
+        {
+            return Stop(assembly.GetGuid());
+        }
+
+        /// <summary>
+        /// Stops hosting an ASP.NET application in the simulated server.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The test server can only be accessed from the default domain.</exception>
+        public static Task Stop(Guid id)
         {
             throwIfNotDefaultAppDomain();
 
-            var app = GetApplication<THttpApplication>();
+            var app = GetApplication(id);
             if (app == null ||
                 !Applications.TryRemove(app.Domain, out app) ||
                 !CloseTasks.TryGetValue(app.Domain, out TaskCompletionSource<object> onCloseTask))
@@ -290,6 +283,17 @@ namespace Ants
             ApplicationManager.ShutdownApplication(app.Domain);
 
             return onCloseTask.Task;
+        }
+
+        /// <summary>
+        /// Stops hosting an ASP.NET application in the simulated server.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The test server can only be accessed from the default domain.</exception>
+        /// <typeparam name="THttpApplication">The type for the ASP.NET application.</typeparam>
+        public static Task Stop<THttpApplication>()
+            where THttpApplication : HttpApplication, new()
+        {
+            return Stop(typeof(THttpApplication).GUID);
         }
 
         /// <summary>

@@ -73,8 +73,8 @@ namespace Ants.HttpRequestQueue
         public ApplicationManager ApplicationManager { get; set; }
         public AutoLoadAssemblyHelper[] Helpers { get; set; }
         public DefaultDomainWorker DefaultDomainWorker { get; set; }
+        public Guid Id { get; set; }
         public StartApplicationArgs StartApplicationArgs { get; set; }
-        public Type AppType { get; set; }
         public int MaxThreads { get; set; }
         public string Domain { get; set; }
         public void Enqueue(Message request)

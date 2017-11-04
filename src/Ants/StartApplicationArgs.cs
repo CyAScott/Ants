@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using System.Web;
 using System.Web.Hosting;
 
 namespace Ants
@@ -18,12 +17,11 @@ namespace Ants
         internal virtual void InvokeAfterApplicationStartsOnDomainWorker()
         {
         }
-        internal void Sanitize<THttpApplication>()
-            where THttpApplication : HttpApplication, new()
+        internal void Sanitize(Guid id)
         {
             if (string.IsNullOrEmpty(Domain))
             {
-                Domain = typeof(THttpApplication).GUID.ToString();
+                Domain = id.ToString();
             }
         }
         internal void ThrowOnValidationError()
@@ -80,7 +78,7 @@ namespace Ants
 
         /// <summary>
         /// The domain you want to use for the simulation.
-        /// If no value is provided then the GUID for the <see cref="HttpApplication"/> type is used.
+        /// If no value is provided then the application GUID is used.
         /// </summary>
         public string Domain { get; set; }
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Net.Http.Headers;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Web;
 using System.Web.Hosting;
 
@@ -35,6 +36,26 @@ namespace Ants
             "d MMM yyyy H:m:s", // RFC 5322 no day-of-week, no zone
         };
         internal static readonly Type BuildManagerHostType = typeof(HttpRuntime).Assembly.GetType("System.Web.Compilation.BuildManagerHost");
+
+        /// <summary>
+        /// Gets the GUID for an assembly.
+        /// </summary>
+        public static Guid GetGuid(this Assembly assembly)
+        {
+            if (assembly == null)
+            {
+                throw new ArgumentException(nameof(assembly));
+            }
+
+            var attribute = assembly.GetCustomAttribute<GuidAttribute>();
+
+            if (string.IsNullOrEmpty(attribute?.Value))
+            {
+                throw new InvalidOperationException("No GUID found for this assembly.");
+            }
+
+            return Guid.Parse(attribute.Value);
+        }
 
         /// <summary>
         /// If the Allow header key exists, the value will be parsed.
