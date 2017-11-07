@@ -22,9 +22,9 @@ namespace Ants.HttpRequestQueue
 
             return EnqueueResults.Enqueued;
         }
-        public string GetDomainFromType(string typeFullName)
+        public string GetDomainFromId(Guid id)
         {
-            return AspNetTestServer.Applications.Values.FirstOrDefault(queue => queue.AppType.AssemblyQualifiedName == typeFullName)?.Domain;
+            return AspNetTestServer.Applications.Values.FirstOrDefault(queue => queue.Id == id)?.Domain;
         }
         public void DomainClosed(string domain)
         {
