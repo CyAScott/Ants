@@ -85,6 +85,7 @@ namespace Ants.Owin
                 {
                     owinModule = new THttpModule();
 
+                    // ReSharper disable once PossibleNullReferenceException
                     blueprint = typeof(THttpModule)
                         .GetMethod("InitializeBlueprint", BindingFlags.NonPublic | BindingFlags.Instance)
                         .Invoke(owinModule, null);

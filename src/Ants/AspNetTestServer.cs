@@ -271,9 +271,26 @@ namespace Ants
             throwIfNotDefaultAppDomain();
 
             var app = GetApplication(id);
-            if (app == null ||
-                !Applications.TryRemove(app.Domain, out app) ||
-                !CloseTasks.TryGetValue(app.Domain, out TaskCompletionSource<object> onCloseTask))
+
+            return app == null ? Task.FromResult(0) : Stop(app.Domain);
+        }
+
+        /// <summary>
+        /// Stops hosting an ASP.NET application in the simulated server.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The test server can only be accessed from the default domain.</exception>
+        public static Task Stop(string domain)
+        {
+            throwIfNotDefaultAppDomain();
+
+            if (string.IsNullOrEmpty(domain))
+            {
+                throw new ArgumentNullException(nameof(domain));
+            }
+
+            HttpApplicationRequestQueue app;
+            if (!Applications.TryRemove(domain, out app) ||
+                !CloseTasks.TryGetValue(domain, out TaskCompletionSource<object> onCloseTask))
             {
                 return Task.FromResult(0);
             }
